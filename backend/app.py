@@ -21,7 +21,7 @@ def home():
 
 # Define an endpoint for single property prediction (POST request)
 @sales_revenue_forecaster_api.post('/v1/sales')
-def forecast_sales_revenue():
+def forecast_sales_revenue_single(): # Renamed to avoid conflict with batch function
     """
     This function handles POST requests to the '/v1/sales' endpoint.
     It expects a JSON payload containing product details and returns
@@ -30,44 +30,43 @@ def forecast_sales_revenue():
     # Get the JSON data from the request body
     product_data = request.get_json()
 
-    # Extract relevant features from the JSON data
+    # Extract relevant features from the JSON data, matching the payload keys
     sample = {
-        'weight': product_data['product_weight'],
-        'sugar': product_data['product_sugar_content, ['low_sugar', 'regular, 'no_sugar']],
-        'product_mrp': product_data['product_mrp'],
-        'store_size': product_data['store_size'],
-        'store_location_city_type': product_data['store_location_city_type, ['tier_1', 'tier_2', 'tier_3]],
-        'store_type': product_data['store_type',['departmental_store', 'supermarket_type_1', 'supermarket_type_2', 'food_mart']],
-        'pid_char': product_data['product_id_char (e.g., fd)', ['fd', 'nc', 'dr']],
-        'age': product_data['store_age_years'],
-        'cat': product_data['product_type_category', ['perishables', 'non_perishables']]
+        'Product_Weight': product_data['Product_Weight'],
+        'Product_Sugar_Content': product_data['Product_Sugar_Content'],
+        'Product_Allocated_Area': product_data['Product_Allocated_Area'],
+        'Product_MRP': product_data['Product_MRP'],
+        'Store_Size': product_data['Store_Size'],
+        'Store_Location_City_Type': product_data['Store_Location_City_Type'],
+        'Store_Type': product_data['Store_Type'],
+        'Product_Id_char': product_data['Product_Id_char'],
+        'Store_Age_Years': product_data['Store_Age_Years'],
+        'Product_Type_Category': product_data['Product_Type_Category']
     }
 
     # Convert the extracted data into a Pandas DataFrame
     input_data = pd.DataFrame([sample])
 
-    # Make forecast (get log_sales_revenue)
+    # Make log-transformed forecast
     forecasted_log_sales_revenue = model.predict(input_data)[0]
 
-    # Calculate actual sales revenue
-    forecasted_sales_revenue = np.exp(forecasted_log_sales_revenue)
+    # Inverse transform the log-transformed predictions to get actual sales revenue
+    forecasted_sales_revenue = np.expm1(forecasted_log_sales_revenue)
 
-    # Convert predicted_sales_revenue to Python float
+    # Convert predicted_sales_revenue to Python float and round it
     forecasted_sales_revenue = round(float(forecasted_sales_revenue), 2)
-    # The conversion above is needed as we convert the model prediction (log sales revenue) to actual sales revenue using np.exp, which returns predictions as NumPy float32 values.
-    # When we send this value directly within a JSON response, Flask's jsonify function encounters a datatype error
 
     # Return the actual sales revenue
-    return jsonify({'Forecasted Sales Revenue (in dollars)': predicted_sales_revenue})
+    return jsonify({'Forecasted Sales Revenue (in dollars)': forecasted_sales_revenue})
 
 
 # Define an endpoint for batch prediction (POST request)
 @sales_revenue_forecaster_api.post('/v1/salesbatch')
-def forecast_sales_revenue():
+def forecast_sales_revenue_batch(): # Renamed to avoid conflict with single prediction function
     """
     This function handles POST requests to the '/v1/salesbatch' endpoint.
-    It expects a CSV file containing property details for multiple properties
-    and returns the predicted rental prices as a dictionary in the JSON response.
+    It expects a CSV file containing product details for multiple products
+    and returns the predicted sales revenue as a dictionary in the JSON response.
     """
     # Get the uploaded CSV file from the request
     file = request.files['file']
@@ -75,38 +74,24 @@ def forecast_sales_revenue():
     # Read the CSV file into a Pandas DataFrame
     input_data = pd.read_csv(file)
 
-    # Make predictions for all products in the DataFrame (get log_prices)
-    forecasted_log_sales = model.forecast(input_data).tolist()
+    # Make predictions for all products in the DataFrame (get log_sales)
+    # The model expects raw features as input, and the pipeline will handle preprocessing
+    log_predictions = model.predict(input_data).tolist()
 
-    # Calculate actual sales
-    forecasted_sales = [round(float(np.exp(log_sales)), 2) for log_sales in forecasted_log_sales]
+    # Calculate actual sales by inverse transforming the log predictions
+    forecasted_sales = [round(float(np.expm1(log_sales)), 2) for log_sales in log_predictions]
 
-    # Create a dictionary of forecasts with product IDs as keys
-    product_ids = input_data['id'].tolist()  # Assuming 'id' is the product ID column
-    output_dict = dict(zip(product_ids, forecasted_sales))  # Use actual prices
+    # Create a dictionary of forecasts with product IDs as keys (assuming 'Product_Id' is in batch_data)
+    # If 'Product_Id' is not present or dropped, you might need a different key or just return a list
+    if 'Product_Id' in input_data.columns:
+        product_ids = input_data['Product_Id'].tolist()
+        output_dict = dict(zip(product_ids, forecasted_sales))
+    else:
+        output_dict = {'Forecasted Sales Revenue': forecasted_sales}
 
     # Return the predictions dictionary as a JSON response
-    return output_dict
+    return jsonify(output_dict)
 
 # Run the Flask application in debug mode if this script is executed directly
-if _name_ == '_main_':
-    sales_revenue_forecaster_api.run(debug=True)
-
-# Load the serialized machine learning model
-model = joblib.load('backend_files/superkart_model.joblib')
-
-@app.route('/v1/predict', methods=['POST'])
-def predict():
-    data = request.get_json()
-    df = pd.DataFrame([data])
-    prediction = model.predict(df)[0]
-    return jsonify({'prediction': float(prediction)})
-
-@app.route('/v1/predictbatch', methods=['POST'])
-def predict_batch():
-    file = request.files['file']
-    df = pd.read_csv(file)
-    predictions = model.predict(df)
-    return jsonify({str(i): float(pred) for i, pred in enumerate(predictions)})
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=7860)
+    sales_revenue_forecaster_api.run(debug=True, host='0.0.0.0', port=7860)
