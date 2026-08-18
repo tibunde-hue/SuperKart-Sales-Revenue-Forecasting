@@ -27,9 +27,9 @@ cat = st.selectbox("Product Type Category", ["Perishables", "Non Perishables"])
 input_data = pd.DataFrame([{
     'weight': product_weight,
     'sugar': product_sugar_content,
-    'product_mrp': product_mrp,
-    'store_size': store_size,
-    'store_location_city_type': store_location_city_type,
+    'mrp': product_mrp,
+    'size': store_size,
+    'city': store_location_city_type,
     'store_type': store_type,
     'pid_char': product_id_char,
     'age': store_age_years,
