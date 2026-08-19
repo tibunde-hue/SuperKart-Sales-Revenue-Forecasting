@@ -46,7 +46,7 @@ if st.button("Forecast", type="primary"):
         st.error("Unable to connect to the prediction API.")
 
 # Section for batch forecasting
-st.subheader("Batch Prediction")
+st.subheader("Batch Forecasting")
 
 # Allow users to upload a CSV file for batch forecasting
 uploaded_file = st.file_uploader("Upload CSV file for batch forecasting", type=["csv"])
