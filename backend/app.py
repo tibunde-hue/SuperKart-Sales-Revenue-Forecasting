@@ -50,23 +50,23 @@ def forecast_sales_revenue_single(): # Renamed to avoid conflict with batch func
     # Make log-transformed forecast
     forecasted_log_sales_revenue = model.predict(input_data)[0]
 
-    # Inverse transform the log-transformed predictions to get actual sales revenue
+    # Inverse transform the log-transformed forecasting to get actual sales revenue
     forecasted_sales_revenue = np.expm1(forecasted_log_sales_revenue)
 
-    # Convert predicted_sales_revenue to Python float and round it
+    # Convert forecasted_sales_revenue to Python float and round it
     forecasted_sales_revenue = round(float(forecasted_sales_revenue), 2)
 
     # Return the actual sales revenue
     return jsonify({'Forecasted Sales Revenue (in dollars)': forecasted_sales_revenue})
 
 
-# Define an endpoint for batch prediction (POST request)
+# Define an endpoint for batch forecasting (POST request)
 @sales_revenue_forecaster_api.post('/v1/salesbatch')
-def forecast_sales_revenue_batch(): # Renamed to avoid conflict with single prediction function
+def forecast_sales_revenue_batch(): # Renamed to avoid conflict with single forecasting function
     """
     This function handles POST requests to the '/v1/salesbatch' endpoint.
     It expects a CSV file containing product details for multiple products
-    and returns the predicted sales revenue as a dictionary in the JSON response.
+    and returns the forecasted sales revenue as a dictionary in the JSON response.
     """
     # Get the uploaded CSV file from the request
     file = request.files['file']
@@ -74,12 +74,12 @@ def forecast_sales_revenue_batch(): # Renamed to avoid conflict with single pred
     # Read the CSV file into a Pandas DataFrame
     input_data = pd.read_csv(file)
 
-    # Make predictions for all products in the DataFrame (get log_sales)
+    # Make forecasts for all products in the DataFrame (get log_sales)
     # The model expects raw features as input, and the pipeline will handle preprocessing
-    log_predictions = model.predict(input_data).tolist()
+    log_forecasts = model.forecast(input_data).tolist()
 
     # Calculate actual sales by inverse transforming the log predictions
-    forecasted_sales = [round(float(np.expm1(log_sales)), 2) for log_sales in log_predictions]
+    forecasted_sales = [round(float(np.expm1(log_sales)), 2) for log_sales in log_forecasts]
 
     # Create a dictionary of forecasts with product IDs as keys (assuming 'Product_Id' is in batch_data)
     # If 'Product_Id' is not present or dropped, you might need a different key or just return a list
@@ -89,7 +89,7 @@ def forecast_sales_revenue_batch(): # Renamed to avoid conflict with single pred
     else:
         output_dict = {'Forecasted Sales Revenue': forecasted_sales}
 
-    # Return the predictions dictionary as a JSON response
+    # Return the forecasts dictionary as a JSON response
     return jsonify(output_dict)
 
 # Run the Flask application in debug mode if this script is executed directly
