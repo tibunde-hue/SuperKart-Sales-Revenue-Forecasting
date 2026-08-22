@@ -1,9 +1,13 @@
+
 import streamlit as st
 import pandas as pd
-import requests
+import joblib
+import numpy as np
+import requests # requests is needed for the Streamlit app to call the backend API
+import os
 
 # Base URL of the Flask backend
-BACKEND_URL = "http://backend:7860"
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:7860")
 
 # Set the title of the Streamlit app
 st.title("SuperKart Sales Revenue Forecasting")
@@ -25,22 +29,23 @@ cat = st.selectbox("Product Type Category", ["Perishables", "Non Perishables"])
 
 # Convert user input into a DataFrame
 input_data = pd.DataFrame([{
-    'weight': product_weight,
-    'sugar': product_sugar_content,
-    'mrp': product_mrp,
-    'size': store_size,
-    'city': store_location_city_type,
-    'store_type': store_type,
-    'pid_char': product_id_char,
-    'age': store_age_years,
-    'cat': product_type_category,
+    'Product_Weight': weight,
+    'Product_Sugar_Content': sugar,
+    'Product_Allocated_Area': area,
+    'Product_MRP': mrp,
+    'Store_Size': size,
+    'Store_Location_City_Type': city,
+    'Store_Type': store_type,
+    'Product_Id_char': pid_char,
+    'Store_Age_Years': age,
+    'Product_Type_Category': cat,
   }])
 
 # Make forecast when the "Forecast" button is clicked
 if st.button("Forecast", type="primary"):
     response = requests.post(f"{BACKEND_URL}/v1/sales", json=input_data.to_dict(orient='records')[0])  # Send data to Flask API
     if response.status_code == 200:
-        Forecast = response.json()['Forecasted Sales Revenue (in dollars)']
+        forecast = response.json()['Forecasted Sales Revenue (in dollars)']
         st.success(f"Forecasted Sales Revenue (in dollars): {forecast}")
     else:
         st.error("Unable to connect to the prediction API.")
